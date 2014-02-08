@@ -8,8 +8,8 @@
     :license: BSD
 """
 
-from werkzeug.datastructures import ImmutableDict
 from werkzeug.routing import Map, Rule
+from werkzeug.datastructures import ImmutableDict
 
 
 class GitAPI(object):
@@ -41,7 +41,8 @@ class GitAPI(object):
         pass
 
     def __call__(self, environ, start_response):
-        pass
+        """Shortcut for :attr:`wsgi_app`."""
+        return self.wsgi_app(environ, start_response)
 
     def __repr__(self):
         return '<{}>'.format(self.__class__.__name__)
