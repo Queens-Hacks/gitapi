@@ -9,40 +9,55 @@
 """
 
 from werkzeug.routing import Map, Rule
+from werkzeug.wrappers import Request, Response
 from werkzeug.datastructures import ImmutableDict
+from data import GitData
 
 
 class GitAPI(object):
-    """This is it."""
+    """The WSGI app exposing your API"""
 
     default_config = ImmutableDict({
         'DEBUG': False,
+        'DATA_LOCAL': None,
+        'DATA_REMOTE': None,
     })
 
     def __init__(self):
-        self.config = dict(default_config)
-        self.endpoint_map = Map()
+        self.config = dict(self.default_config)
+        self.resources = {}
+        self.endpoint_funcs = {}
+        self.url_map = Map()
 
     def run(self, host=None, port=None, debug=None, **options):
         """mostly copied from flask"""
-        from werzeug.serving import run_simple
+        from werkzeug.serving import run_simple
         host = host or '127.0.0.1'
         port = port or self.config.get('PORT') or 5000
-        if debug is not None:
-            self.debug = bool(debug)
+        self.debug = bool(debug) if debug is not None else self.config['DEBUG']
         options.setdefault('use_reloader', self.debug)
         options.setdefault('use_debugger', self.debug)
         run_simple(host, port, self, **options)
 
-    def add_resource_endpoint(self, url_root, resource):
-        pass
+    def add_resource_endpoint(self, url_prefix, resource):
+        assert resource.folder not in self.resources, \
+            "{}: Resources can only be registered once".format(resource.folder)
+        self.resources[resource.folder] = resource
+        resource.data = GitData(resource.folder)
+        resource.data.register_urls(url_prefix, self)
 
     def wsgi_app(self, environ, start_response):
-        pass
+        """Blah blah blah"""# self.endpoint_funcs[rule.endpoint](**req.view_args)
+        request = Request(environ)
+        urls = self.url_map.bind_to_environ(environ)
+        endpoint, args = urls.match()
+        resp = endpoint(**args)
+        response = Response(resp)
+        return response(environ, start_response)
 
     def __call__(self, environ, start_response):
         """Shortcut for :attr:`wsgi_app`."""
         return self.wsgi_app(environ, start_response)
 
     def __repr__(self):
-        return '<{}>'.format(self.__class__.__name__)
+        return '<{}: {}>'.format(self.__class__.__name__, id(self))

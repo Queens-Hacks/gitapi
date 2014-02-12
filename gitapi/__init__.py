@@ -12,4 +12,4 @@
 from api import GitAPI
 from resource import Resource
 from schema import Reference, Indexed, Record
-from data import something
+from data import GitData

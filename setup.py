@@ -19,6 +19,7 @@ setup(
     url='http://github.com/Queens-Hacks/gitapi',
     install_requires=[
         "PyYaml",
+        "pyrx",
         "Werkzeug",
         "venvgit2"
     ],

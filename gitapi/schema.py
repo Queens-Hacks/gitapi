@@ -3,7 +3,8 @@
     gitapi.schema
     ~~~~~~~~~~~~~
 
-    Magic
+    Wrap rx types in python classes, making the code a bit more readable with
+    better errors and nifty stuff like Indexed.
 
     :license: BSD
 """
@@ -24,10 +25,11 @@ class Indexed(TypeBase):
 
     @property
     def rx(self):
-        return self.type_.rx
+        return self.rx_type.rx
 
-    def __init__(type_):
-        self.type_ = type_
+    def __init__(rx_type, unique=True):
+        self.rx_type = rx_type
+        self.unique = unique
 
 
 class Reference(TypeBase):
