@@ -6,11 +6,12 @@ api = GitAPI('gitapidatatest')
 
 
 class Student(Resource):
-    
     folder = 'students'
+    url_prefix = '/students'
+    files = True
 
 
-api.add_resource_endpoint('/students', Student)
+api.add_resource_endpoint(Student)
 
 
 if __name__ == '__main__':

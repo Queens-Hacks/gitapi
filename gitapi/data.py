@@ -9,7 +9,9 @@
 """
 
 import os
+import yaml
 from werkzeug.routing import Rule
+from werkzeug.security import safe_join
 from werkzeug.exceptions import NotFound
 
 
@@ -32,21 +34,28 @@ class GitData(object):
         route('DELETE','/<resource_id>', self.delete)
 
     def index(self):
-        return "yo yo yo!\n"
+        entries = (e for e in self.repo.index
+                   if e.path.startswith(self.resource.folder + '/'))
+        lalala = ((e.path, self.repo.get(e.hex).data) for e in entries)
+        return [self.resource(path, yaml.load(data)) for path, data in lalala]
 
     def create(self):
         return "should create some stuff\n"
 
     def get(self, resource_id):
-        #### WARNING -- use a safe_join... does werkzeug have one?
-        path = os.path.join(self.resource.folder, resource_id)
-        print('using path', path)
+        path = safe_join(self.resource.folder, resource_id)
+        if path is None:
+            raise NotFound()
+        if self.resource.files:
+            path += '.yaml'
         try:
             entry = self.repo.index[path]
         except KeyError:
             raise NotFound()
-        data = self.repo.get(entry.hex).data
-        return data + "\n"
+        raw_data = self.repo.get(entry.hex).data
+        data = yaml.load(raw_data)
+        resource = self.resource(path, data)
+        return resource
 
     def update(self, resource_id):
         return "replace with something\n"

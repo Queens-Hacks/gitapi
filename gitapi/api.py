@@ -8,6 +8,7 @@
     :license: BSD
 """
 
+import json
 from pygit2 import Repository
 from werkzeug.routing import Map, Rule
 from werkzeug.wrappers import Request, Response
@@ -41,20 +42,21 @@ class GitAPI(object):
         options.setdefault('use_debugger', self.debug)
         run_simple(host, port, self, **options)
 
-    def add_resource_endpoint(self, url_prefix, resource):
+    def add_resource_endpoint(self, resource):
         assert resource.folder not in self.resources, \
             "{}: Resources can only be registered once".format(resource.folder)
         self.resources[resource.folder] = resource
         resource.data = GitData(resource, self.repo)
-        resource.data.register_urls(url_prefix, self)
+        resource.data.register_urls(resource.url_prefix, self)
 
     def wsgi_app(self, environ, start_response):
         """Blah blah blah"""
         request = Request(environ)
         urls = self.url_map.bind_to_environ(environ)
         endpoint, args = urls.match()
-        resp = endpoint(**args)
-        response = Response(resp)
+        resp_data = endpoint(**args)
+        json_string = json.dumps(resp_data, indent=2)
+        response = Response(json_string)
         return response(environ, start_response)
 
     def __call__(self, environ, start_response):
