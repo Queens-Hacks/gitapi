@@ -2,12 +2,12 @@
 
 from gitapi import GitAPI, Resource
 
-api = GitAPI()
+api = GitAPI('gitapidatatest')
 
 
 class Student(Resource):
     
-    folder = 'stutdents'
+    folder = 'students'
 
 
 api.add_resource_endpoint('/students', Student)

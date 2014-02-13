@@ -11,5 +11,4 @@
 # Expose things to the public interface
 from api import GitAPI
 from resource import Resource
-from schema import Reference, Indexed, Record
 from data import GitData

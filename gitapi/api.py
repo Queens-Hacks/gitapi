@@ -8,6 +8,7 @@
     :license: BSD
 """
 
+from pygit2 import Repository
 from werkzeug.routing import Map, Rule
 from werkzeug.wrappers import Request, Response
 from werkzeug.datastructures import ImmutableDict
@@ -23,11 +24,12 @@ class GitAPI(object):
         'DATA_REMOTE': None,
     })
 
-    def __init__(self):
+    def __init__(self, git_dir):
         self.config = dict(self.default_config)
         self.resources = {}
         self.endpoint_funcs = {}
         self.url_map = Map()
+        self.repo = Repository(git_dir)
 
     def run(self, host=None, port=None, debug=None, **options):
         """mostly copied from flask"""
@@ -43,11 +45,11 @@ class GitAPI(object):
         assert resource.folder not in self.resources, \
             "{}: Resources can only be registered once".format(resource.folder)
         self.resources[resource.folder] = resource
-        resource.data = GitData(resource.folder)
+        resource.data = GitData(resource, self.repo)
         resource.data.register_urls(url_prefix, self)
 
     def wsgi_app(self, environ, start_response):
-        """Blah blah blah"""# self.endpoint_funcs[rule.endpoint](**req.view_args)
+        """Blah blah blah"""
         request = Request(environ)
         urls = self.url_map.bind_to_environ(environ)
         endpoint, args = urls.match()
