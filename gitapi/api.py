@@ -54,7 +54,7 @@ class GitAPI(object):
         request = Request(environ)
         urls = self.url_map.bind_to_environ(environ)
         endpoint, args = urls.match()
-        resp_data = endpoint(**args)
+        resp_data = endpoint(request, **args)
         json_string = json.dumps(resp_data, indent=2)
         response = Response(json_string)
         return response(environ, start_response)

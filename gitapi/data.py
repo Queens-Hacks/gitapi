@@ -12,7 +12,7 @@ import os
 import yaml
 from werkzeug.routing import Rule
 from werkzeug.security import safe_join
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import NotFound, BadRequest
 
 
 class GitData(object):
@@ -33,16 +33,28 @@ class GitData(object):
         route('PATCH', '/<resource_id>', self.patch)
         route('DELETE','/<resource_id>', self.delete)
 
-    def index(self):
+    def index(self, request):
         entries = (e for e in self.repo.index
                    if e.path.startswith(self.resource.folder + '/'))
         lalala = ((e.path, self.repo.get(e.hex).data) for e in entries)
         return [self.resource(path, yaml.load(data)) for path, data in lalala]
 
-    def create(self):
-        return "should create some stuff\n"
+    def create(self, request):
+        # print('\n'.join(dir(request)))
+        try:
+            # this mapping should be generated from the Resource schema
+            noob = {'name': str(request.form['name']),
+                    'last': str(request.form['last']),
+                    'who': str(request.form['who'])}
+        except KeyError:
+            raise BadRequest
+        serialized = yaml.dump(noob)
+        blob = self.repo.create_blob(serialized)
+        
 
-    def get(self, resource_id):
+        return "Y"
+
+    def get(self, request, resource_id):
         path = safe_join(self.resource.folder, resource_id)
         if path is None:
             raise NotFound()
@@ -57,11 +69,11 @@ class GitData(object):
         resource = self.resource(path, data)
         return resource
 
-    def update(self, resource_id):
+    def update(self, request, resource_id):
         return "replace with something\n"
 
-    def patch(self, resource_id):
+    def patch(self, request, resource_id):
         return "update something specific\n"
 
-    def delete(self, resource_id):
+    def delete(self, request, resource_id):
         return "remove that.\n"
