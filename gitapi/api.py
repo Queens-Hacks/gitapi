@@ -160,6 +160,16 @@ class Resource(object):
         link = '/'.join((link_url_prefix, resource_id))
         return {'link': link}
 
+    def get_test_treebuilders(self):
+        if 'test' not in self.repo.listall_branches():
+            self.repo.create_branch('test', self.repo.head.get_object())
+        tree = self.repo.lookup_branch('test').get_object().tree
+        treebuilder = self.repo.TreeBuilder(tree)
+        resource_subtree_entry = tree[self.folder]
+        resource_subtree = self.repo.get(resource_subtree_entry.oid)
+        resource_treebuilder = self.repo.TreeBuilder(resource_subtree)
+        return treebuilder, resource_treebuilder
+
     def index(self, request):
         """List all instances of this resource.
         Iterates through the folder and grab data for every entry.
@@ -180,12 +190,11 @@ class Resource(object):
         if 'test' not in self.repo.listall_branches():
             self.repo.create_branch('test', self.repo.head.get_object())
         blob_oid = self.repo.create_blob(yaml.dump(data))
-        resource_treebuilder = self.repo.TreeBuilder(self.get_tree())
-        resource_treebuilder.insert(data_id, blob_oid, pygit2.GIT_FILEMODE_BLOB)
-        resource_tree_oid = resource_treebuilder.write()
-        main_treebuilder = self.repo.TreeBuilder(self.repo.head.get_object().tree)
-        main_treebuilder.insert(self.folder, resource_tree_oid, pygit2.GIT_FILEMODE_TREE)
-        tree_oid = main_treebuilder.write()
+        treebuilder, subtreebuilder = self.get_test_treebuilders()
+        subtreebuilder.insert(data_id, blob_oid, pygit2.GIT_FILEMODE_BLOB)
+        subtree_oid = subtreebuilder.write()
+        treebuilder.insert(self.folder, subtree_oid, pygit2.GIT_FILEMODE_TREE)
+        tree_oid = treebuilder.write()
         committer = author = pygit2.Signature('API Person', 'api@example.com')
         commit_oid = self.repo.create_commit(
             'refs/heads/test', author, committer,
