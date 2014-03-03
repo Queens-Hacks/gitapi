@@ -10,10 +10,12 @@
 
 import os
 import json
-import pygit2
 import yaml
+import pygit2
+from pyrx import RxError, Factory as SchemaFactory, _CoreType as PyrxType
 from werkzeug.routing import Map, Rule
 from werkzeug.wrappers import Request, Response
+from werkzeug.exceptions import BadRequest
 from werkzeug.datastructures import ImmutableDict
 
 
@@ -69,11 +71,41 @@ class GitAPI(object):
         return '<{}: {}>'.format(self.__class__.__name__, id(self))
 
 
+class RefType(PyrxType):
+    """A custom rx type for references to other resources"""
+
+    @staticmethod
+    def subname():
+        return 'ref'
+
+    def __init__(self, schema, rx):
+        """Make sure the schema is legal"""
+        if not set(schema.keys()) <= set(('type', 'folder')):
+            raise RxError('unknown parameter for //ref')
+        try:
+            self.folder = schema['folder']
+        except KeyError:
+            raise RxError('type //ref needs a folder')
+
+    def check(self, value):
+        parts = value.split('/')
+        if len(parts) != 2:
+            return False
+        folder, data_id = parts
+        if not folder == self.folder:
+            return False
+        return True
+
+
 class Resource(object):
 
     def __init__(self, folder, schema):
         self.folder = folder
-        self.schema = schema
+        rx = SchemaFactory({'register_core_types': True})
+        rx.register_type(RefType)
+        schema_data = yaml.load(schema)
+        self.schema = rx.make_schema(schema_data)
+        self._id_generator = None
 
     def register(self, api, url_prefix, repo):
         self.api = api
@@ -89,6 +121,10 @@ class Resource(object):
         route('PUT',   '/<resource_id>', self.update)
         route('PATCH', '/<resource_id>', self.patch)
         route('DELETE','/<resource_id>', self.delete)
+
+    def id_generator(self, func):
+        self._id_generator = func
+        return func
 
     def get_tree(self):
         resource_treeentry = self.repo.head.get_object().tree[self.folder]
@@ -132,6 +168,30 @@ class Resource(object):
         return [self.ref_to_resource(id_, sha1) for id_, sha1 in raw_data]
 
     def create(self, request):
+        # 1. Convert and validate data
+        raw_data = request.get_data()
+        data = json.loads(raw_data)
+        if not self.schema.check(data):
+            raise BadRequest()
+        # 2. Generate an ID
+        id_ =  self._id_generator(data)
+        data_id = id_ + '.yml'
+        # 3. Write the new data to a branch
+        if 'test' not in self.repo.listall_branches():
+            self.repo.create_branch('test', self.repo.head.get_object())
+        blob_oid = self.repo.create_blob(yaml.dump(data))
+        resource_treebuilder = self.repo.TreeBuilder(self.get_tree())
+        resource_treebuilder.insert(data_id, blob_oid, pygit2.GIT_FILEMODE_BLOB)
+        resource_tree_oid = resource_treebuilder.write()
+        main_treebuilder = self.repo.TreeBuilder(self.repo.head.get_object().tree)
+        main_treebuilder.insert(self.folder, resource_tree_oid, pygit2.GIT_FILEMODE_TREE)
+        tree_oid = main_treebuilder.write()
+        committer = author = pygit2.Signature('API Person', 'api@example.com')
+        commit_oid = self.repo.create_commit(
+            'refs/heads/test', author, committer,
+            'Some update....',
+            tree_oid, [self.repo.lookup_branch('test').get_object().oid],
+        )
         return 'make a new one'
 
     def get(self, request, resource_id):

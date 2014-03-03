@@ -15,28 +15,32 @@ import pygit2
 from gitapi import GitAPI
 
 
-course_schema = """
-type: \\rec
+course_schema = """type: //rec
 required:
-  name: \\str
-  description: \\str
+  name: //str
+  description: //str
 optional:
   instructor:
-    type: \\ref
+    type: //ref
     folder: instructors
 """
 
-instructor_schema = """
-type: \\rec
+instructor_schema = """type: //rec
 required:
-  name: \\str
+  name: //str
 """
 
 
 def get_app(repo):
     app = GitAPI(repo)
-    app.data_resource('courses', '/courses', schema=course_schema)
-    app.data_resource('instructors', '/instructors', schema=instructor_schema)
+    courses = app.data_resource('courses', '/courses', schema=course_schema)
+    @courses.id_generator
+    def generate_course_id(course_data):
+        return "abc123"
+    instructors = app.data_resource('instructors', '/instructors', schema=instructor_schema)
+    @instructors.id_generator
+    def generate_instructor_id(instructor_data):
+        return instructor_data['name'].lower().replace(' ', '-')
     return app
 
 
@@ -75,7 +79,7 @@ def seed(repo):
         blob = repo.create_blob('name: {}\n'.format(name))
         instructors_tree.insert(id + '.yml', blob, pygit2.GIT_FILEMODE_BLOB)
     insert_instructor('margaret-lamb', 'Margaret Lamb')
-    insert_instructor('alam-mcleod', 'Alan McLeod')
+    insert_instructor('alan-mcleod', 'Alan McLeod')
     tree.insert('instructors', instructors_tree.write(), pygit2.GIT_FILEMODE_TREE)
 
     tree_oid = tree.write()
