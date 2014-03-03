@@ -10,5 +10,3 @@
 
 # Expose things to the public interface
 from api import GitAPI
-from resource import Resource
-from data import GitData
