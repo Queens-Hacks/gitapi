@@ -201,7 +201,7 @@ class Resource(object):
             'Some update....',
             tree_oid, [self.repo.lookup_branch('test').get_object().oid],
         )
-        return 'make a new one'
+        return data
 
     def get(self, request, resource_id):
         data_id = resource_id + '.yml'
