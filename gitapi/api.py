@@ -35,10 +35,10 @@ class GitAPI(object):
         self.endpoint_funcs = {}
         self.url_map = Map()
 
-    def data_resource(self, folder, url_prefix, schema):
+    def data_resource(self, folder, url_prefix, schema, filters=None):
         assert folder not in self.resources, \
             "{}: Resource names gotta be unique yo.".format(resource.folder)
-        resource = Resource(folder, schema)
+        resource = Resource(folder, schema, filters)
         self.resources[folder] = resource
         resource.register(self, url_prefix, self.repo)
         return resource
@@ -102,8 +102,9 @@ class RefType(PyrxType):
 
 class Resource(object):
 
-    def __init__(self, folder, schema):
+    def __init__(self, folder, schema, filters):
         self.folder = folder
+        self.filters = filters
         rx = SchemaFactory({'register_core_types': True})
         rx.register_type(RefType)
         schema_data = yaml.load(schema)

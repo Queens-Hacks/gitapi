@@ -24,6 +24,7 @@ optional:
     type: //ref
     folder: instructors
 """
+course_filters = ('name', 'instructor')
 
 instructor_schema = """type: //rec
 required:
@@ -33,7 +34,7 @@ required:
 
 def get_app(repo):
     app = GitAPI(repo)
-    courses = app.data_resource('courses', '/courses', schema=course_schema)
+    courses = app.data_resource('courses', '/courses', schema=course_schema, filters=course_filters)
     @courses.id_generator
     def generate_course_id(course_data):
         return "abc123"
