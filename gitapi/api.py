@@ -58,8 +58,11 @@ class GitAPI(object):
         request = Request(environ)
         urls = self.url_map.bind_to_environ(environ)
         endpoint, args = urls.match()
-        resp_data = endpoint(request, **args)
-        json_string = json.dumps(resp_data, indent=2)
+        # dispatch the request
+        meta, data = endpoint(request, **args)
+        resp_obj = {'meta': meta,
+                    'data': data}
+        json_string = json.dumps(resp_obj, indent=2)
         response = Response(json_string)
         return response(environ, start_response)
 
@@ -131,27 +134,33 @@ class Resource(object):
         folder_tree = self.repo.get(resource_treeentry.oid)
         return folder_tree
 
+    def refs_to_meta(self, current, next_ref):
+        next_gitobj = self.repo.get(next_ref)
+        print('\n'.join(dir(next_gitobj)))
+        return 'lalala'
+
+
     def ref_to_resource(self, data_id, hex_sha1):
         # 0. Convert id (strip suffix)
         resource_id = os.path.splitext(data_id)[0]
         # 1. Load data
         raw_data = self.repo.get(hex_sha1).data
         data = yaml.load(raw_data)
-        print(data)
         # 2. Convert refs to links
-        def refs_to_links(data):
-            for key, val in data.items():
-                if isinstance(val, dict):
-                    data[key] = refs_to_links(val)
-                if 'ref' in val:
-                    link = self.ref_to_link(val['ref'])
-                    data[key] = link
-                    
-        refs_to_links(data)
-        # 3. Inject a link to self
+        self.refs_to_links(data)
+        # 3. Inject a link to self/
         self_data_ref = '/'.join((self.folder, data_id))
         data.update(self.ref_to_link(self_data_ref))
         return data
+
+    def refs_to_links(self, data):
+        """Change all of data's refs into http links"""
+        for key, val in data.items():
+            if isinstance(val, dict):
+                data[key] = self.refs_to_links(val)
+            if 'ref' in val:
+                link = self.ref_to_link(val['ref'])
+                data[key] = link
 
     def ref_to_link(self, ref):
         folder, data_id = ref.split('/')
@@ -174,8 +183,11 @@ class Resource(object):
         """List all instances of this resource.
         Iterates through the folder and grab data for every entry.
         """
-        raw_data = ((e.name, e.hex) for e in self.get_tree())
-        return [self.ref_to_resource(id_, sha1) for id_, sha1 in raw_data]
+        current_tree = self.get_tree()
+        refs = (e.hex for e in current_tree)
+        meta = reduce(self.refs_to_meta, refs, None)
+        data = [self.ref_to_resource(e.name, e.hex) for e in current_tree]
+        return meta, data
 
     def create(self, request):
         # 1. Convert and validate data
@@ -206,7 +218,7 @@ class Resource(object):
     def get(self, request, resource_id):
         data_id = resource_id + '.yml'
         entry = self.get_tree()[data_id]
-        return self.ref_to_resource(entry.name, entry.hex)
+        return "lalala", self.ref_to_resource(entry.name, entry.hex)
 
     def update(self, request, resource_id):
         return 'update this one {}'.format(resource_id)
